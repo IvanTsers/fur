@@ -11,7 +11,7 @@ import (
           "path/filepath"
           "sort"
           "math"
-          "github.com/evolbioinf/fasta"
+          "github.com/ivantsers/fasta"
           "bytes"
           "strings"
           "sync"

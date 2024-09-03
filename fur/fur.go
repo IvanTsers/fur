@@ -9,11 +9,11 @@ import (
           "strings"
           "strconv"
           "log"
-          "github.com/evolbioinf/fasta"
+          "github.com/ivantsers/fasta"
           "text/tabwriter"
           "github.com/evolbioinf/sus"
           "math"
-          "path/filepath"
+          "github.com/ivantsers/chr"
           "os/exec"
           "bytes"
 )
@@ -43,15 +43,19 @@ func main() {
           m = "print unique regions after sliding window analysis " +
                     "and exit"
           optU := flag.Bool("u", false, m)
+          m = "intersection sensitivity, the minimum fraction of target " + 
+                    "genomes that have to share the same nucleotide at " +
+                    "a given position in the representative"
+          optF := flag.Float64("f", 1.0, m)
+          optX := flag.Bool("x", false, "exact matches only")
           m = "print unique regions after checking for presence " +
                     "in templates and exit"
-          optX := flag.Bool("x", false, "exact matches only")
           optUU := flag.Bool("U", false, m)
           optE := flag.Float64("e", 1e-5, "E-value for Blast")
-          optT := flag.Int("t", 8, "Number of threads for Phylonium and Blast")
+          optT := flag.Int("t", 8, "Number of threads for Blast")
           optM := flag.Bool("m", false, "megablast mode (default blastn)")
           optMM := flag.Bool("M", false,
-                    "activate masking (recommended for mammalian genomes")
+                    "activate masking (recommended for mammalian genomes)")
           optN := flag.Int("n", 100, "number of nucleotides in region")
           flag.Parse()
           if *optV {
@@ -195,49 +199,34 @@ func main() {
           if len(regions) > 0 {
                     numTargets := 0
                     dirEntries, err := os.ReadDir(*optD + "/t")
+                    if err != nil {
+                              log.Fatalf("couldn't open %s as a target directory\n",
+                                      *optD + "/t")
+                    }
                     numTargets = len(dirEntries) + 1
                     if numTargets > 1 {
-                              f, err = os.CreateTemp(*optD, "*.fasta")
-                              util.Check(err)
-                              for _, region := range regions {
-                                        fmt.Fprintf(f, "%s\n", region)
+                              threshold := 0.0
+                              if *optF > 1.0 || *optF <= 0.0 {
+                                        fmt.Fprintf(os.Stderr,
+                                                "can't use %v as a sensitivity threshold," +
+                                                "please use a value greater" +
+                                                " than 0 and up to 1", *optF)
+                                        os.Exit(1)
+                              } else {
+                                        threshold = *optF
                               }
-                              f.Close()
-                              cmd := exec.Command("phylonium")
-                              rf := f.Name()
-                              pf := ""
-                              f, err = os.CreateTemp(*optD, "*.fasta")
-                              util.Check(err)
-                              pf = f.Name()
-                              f.Close()
-                              _, err := os.Stat(pf)
-                              if err == nil {
-                                        err = os.Remove(pf)
-                                        util.Check(err)
+                              parameters := chr.Parameters{
+                                        Reference:       regions,
+                                        TargetDir:       *optD + "/t",
+                                        Threshold:       threshold,
+                                        ShustrPval:      0.95,
+                                        CleanSubject:    true,
+                                        CleanQuery:      true,
+                                        PrintN:          !*optX,
+                                        PrintSegSitePos: true,
+                                        PrintOneBased:   true,
                               }
-                              ts := strconv.Itoa(*optT)
-                              args := []string{"phylonium", "-t", ts, "-p", pf, "-r", rf}
-                              tf, err := filepath.Glob(*optD + "/t/*")
-                              args = append(args, tf...)
-                              cmd.Args = args
-                              out, err := cmd.CombinedOutput()
-                              if err != nil {
-                                        i := bytes.Index(out, []byte("homology"))
-                                        j := bytes.Index(out, []byte("nan"))
-                                        if i < 0  && j < 0 {
-                                                fmt.Fprintf(os.Stderr,"%s\n", out)
-                                                os.Exit(1)
-                                        }
-                              }
-                              regions = regions[:0]
-                              f, err = os.Open(pf)
-                              util.Check(err)
-                              sc = fasta.NewScanner(f)
-                              for sc.ScanSequence() {
-                                        s := sc.Sequence()
-                                        regions = append(regions, s)
-                              }
-                              f.Close()
+                              regions = chr.Intersect(parameters)
                               i := 0
                               for _, region := range regions {
                                         if len(region.Data()) >= *optN {
@@ -246,79 +235,16 @@ func main() {
                                         }
                               }
                               regions = regions[:i]
-                              i = 0
-                              for _, region := range regions {
-                                        arr := strings.Fields(region.Header())
-                                        n, err := strconv.Atoi(arr[2])
-                                        util.Check(err)
-                                        pos := make([]int, 0)
-                                        for j := 0; j < n; j++ {
-                                                  x, err := strconv.Atoi(arr[j+3])
-                                                  util.Check(err)
-                                                  pos = append(pos, x-1)
-                                        }
-                                        if *optX && len(pos) > 0 { continue }
-                                        for _, p := range pos {
-                                                  region.Data()[p] = 'N'
-                                        }
-                                        regions[i] = region
-                                        i++
-                              }
-                              regions = regions[:i]
-                              for _, region := range regions {
-                                        arr := strings.Split(region.Header(), "(")
-                                        arr = strings.Split(arr[1], ")")
-                                        mutations := arr[1]
-                                        arr = strings.Split(arr[0], "..")
-                                        sp, err := strconv.Atoi(arr[0])
-                                        util.Check(err)
-                                        ep, err := strconv.Atoi(arr[1])
-                                        util.Check(err)
-                                        sp -= 1
-                                        ep -= 2
-                                        var sr, er, ii, iii int
-                                        c := 0
-                                        found := false
-                                        intervals:
-                                        for ii < len(intervals) {
-                                                  ivals := intervals[ii]
-                                                  for iii < len(ivals) {
-                                                          ival := ivals[iii]
-                                                          iii++
-                                                          l := ival.e - ival.s + 1
-                                                          if l < *optN { continue }
-                                                          if sp <= c+l-1 && ep >= c {
-                                                                    sr = ival.s + sp - c
-                                                                    er = ival.s + ep - c
-                                                                    found = true
-                                                                    c += l+1
-                                                                    break intervals
-                                                          }
-                                                          c += l+1
-                                                  }
-                                                  iii = 0
-                                                  ii++
-                                        }
-                                        if found {
-                                                  h := fmt.Sprintf("%s_(%d..%d) %s", r[ii].Header(),
-                                                          sr+1, er+1, mutations)
-                                                  region.SetHeader(h)
-                                        } else {
-                                                  log.Fatalf("Coudn't find region %s\n",
-                                                          region.Header())
-                                        }
-                              }
                               for _, region := range regions {
                                         for i, c := range region.Data() {
-                                                if c == '!' {
-                                                        region.Data()[i] = 'N'
-                                                }
+                                                  if c == '!' {
+                                                          region.Data()[i] = 'N'
+                                                  }
                                         }
+                                        origHeader := region.Header()
+                                        newHeader := strings.Replace(origHeader, " (", "_(", 1)
+                                        region.SetHeader(newHeader)
                               }
-                              err = os.Remove(rf)
-                              util.Check(err)
-                              err = os.Remove(pf)
-                              util.Check(err)
                     }
                     ns = len(regions)
                     le, nn = countNucl(regions)
