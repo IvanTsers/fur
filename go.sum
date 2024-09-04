@@ -8,5 +8,7 @@ github.com/evolbioinf/sus v0.0.0-20230320163303-b6d16dd4ec1f h1:yd1T1dpX1RU9ehKY
 github.com/evolbioinf/sus v0.0.0-20230320163303-b6d16dd4ec1f/go.mod h1:SaiLF93OldWIG3wdOZ+aZSNoklGESyYLi5yGQRXONLs=
 github.com/ivantsers/chr v0.0.0-20240902125244-147271be49ac h1:2sDg49Artswh8hnBXOOfihk9daS7ZQSP8NCGIzedOqU=
 github.com/ivantsers/chr v0.0.0-20240902125244-147271be49ac/go.mod h1:YVbEqOzmdfVSkbPjt0rshIJ4lB9NeO0FPUpee/YI1O8=
+github.com/ivantsers/chr v0.0.0-20240904113825-8dfc26d67657 h1:1PmJdb9mWXmks3OJ8S0hEuV4oVHsfrU3xBW17/g56d4=
+github.com/ivantsers/chr v0.0.0-20240904113825-8dfc26d67657/go.mod h1:YVbEqOzmdfVSkbPjt0rshIJ4lB9NeO0FPUpee/YI1O8=
 github.com/ivantsers/fasta v0.0.0-20240830081231-39b1ecbb3ca0 h1:HCGcXnpX7lbmLMu2e3vjjhur+cRLULAXLZO0IxhESYQ=
 github.com/ivantsers/fasta v0.0.0-20240830081231-39b1ecbb3ca0/go.mod h1:WgjYkg+R2oYa26nW+9KiWb1WrNZ0ZN2erE8JAUu/ob4=

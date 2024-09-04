@@ -52,7 +52,7 @@ func main() {
                     "in templates and exit"
           optUU := flag.Bool("U", false, m)
           optE := flag.Float64("e", 1e-5, "E-value for Blast")
-          optT := flag.Int("t", 8, "Number of threads for Blast")
+          optT := flag.Int("t", 4, "Number of threads for Blast")
           optM := flag.Bool("m", false, "megablast mode (default blastn)")
           optMM := flag.Bool("M", false,
                     "activate masking (recommended for mammalian genomes)")
@@ -369,7 +369,7 @@ func main() {
                                                 arr := strings.Split(h, "_(")
                                                 prefix := arr[0]
                                                 arr = strings.Split(arr[1], ")")
-                                                muts := strings.Fields(arr[1])
+                                                muts := strings.Fields(arr[2])
                                                 mutations := make([]int, 0)
                                                 for _, m := range muts {
                                                           i, err := strconv.Atoi(m)

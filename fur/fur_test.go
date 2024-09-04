@@ -14,7 +14,7 @@ func TestFur(t *testing.T) {
 	wodq := exec.Command("./fur", "-d", d, "-q", "0.5")
 	wodqw := exec.Command("./fur", "-d", d, "-q", "0.5", "-w", "150")
 	wodqwt := exec.Command("./fur", "-d", d, "-q", "0.5", "-w", "150",
-		"-t", "8")
+		"-t", "4")
 	mbad := exec.Command("./fur", "-d", d, "-M")
 	d = "masked.db"
 	mgoodnom := exec.Command("./fur", "-d", d)
