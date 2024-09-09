@@ -172,8 +172,11 @@ func main() {
                             l := iv.e - iv.s + 1
                             if l >= *optN {
                                     arr := strings.Fields(r[i].Header())
-                                    h := fmt.Sprintf("%s_(%d..%d)",
-                                              arr[0], iv.s+1, iv.e+1)
+                                    h := fmt.Sprintf("%s$%d", arr[0], iv.s)
+                                    if *optU {
+                                              h = fmt.Sprintf("%s_(%d..%d)",
+                                                      arr[0], iv.s+1, iv.e+1) 
+                                    }
                                     region := fasta.NewSequence(h, d[iv.s:iv.e+1])
                                     regions = append(regions, region)
                             }
@@ -217,6 +220,7 @@ func main() {
                               }
                               parameters := chr.Parameters{
                                         Reference:       regions,
+                                        ShiftRefRight:   true,
                                         TargetDir:       *optD + "/t",
                                         Threshold:       threshold,
                                         ShustrPval:      0.95,
@@ -236,13 +240,8 @@ func main() {
                               }
                               regions = regions[:i]
                               for _, region := range regions {
-                                        for i, c := range region.Data() {
-                                                  if c == '!' {
-                                                          region.Data()[i] = 'N'
-                                                  }
-                                        }
                                         origHeader := region.Header()
-                                        newHeader := strings.Replace(origHeader, " (", "_(", 1)
+                                        newHeader := strings.Replace(origHeader, "\t(", "_(", 1)
                                         region.SetHeader(newHeader)
                               }
                     }
@@ -369,7 +368,7 @@ func main() {
                                                 arr := strings.Split(h, "_(")
                                                 prefix := arr[0]
                                                 arr = strings.Split(arr[1], ")")
-                                                muts := strings.Fields(arr[2])
+                                                muts := strings.Fields(arr[1])
                                                 mutations := make([]int, 0)
                                                 for _, m := range muts {
                                                           i, err := strconv.Atoi(m)
@@ -395,7 +394,7 @@ func main() {
                                                 h = fmt.Sprintf("%s_(%d..%d) %4d",
                                                           prefix, s, e, n)
                                                 for _, m := range nm {
-                                                          h = fmt.Sprintf("%s  %d", h, m)
+                                                          h = fmt.Sprintf("%s %d", h, m)
                                                 }
                                         }
                                         s := fasta.NewSequence(h, r)

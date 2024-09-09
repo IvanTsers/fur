@@ -467,18 +467,33 @@ length.
   }
 #+end_src
 #+begin_export latex
-A region is stored with a header modeled on
+A region is stored with a header. There are two possible formats.  The
+first format, which we use by default, keeps the first field of the
+header and extends it with the field \ty{\$x}:
 \begin{center}
-\ty{name\_(start..end)}
+\ty{name\$x},
 \end{center}
-The suffix containing the start and end coordinates ensures that the
-region has a unique name. Since Blast truncates names after the first
-blank, we reduce the name to the first field of the header.
+where \ty{x} is a zero-based start coordinate of the region on the
+representative contig. This field will be parsed in
+Step~\ref{eq:fur2}.
+
+The second format extends the \ty{name} field with a suffix preceded by
+an underscore:
+\begin{center}
+\ty{name\_(start..end)},
+\end{center}
+where start and end are one-based, end exclusive. We use this format
+if the user has opted for exiting after the First Subtraction.  The
+suffix containing the start and end coordinates ensures that the
+region has a unique name.
 #+end_export
 #+begin_src go <<Store region, Pr. \ref{pr:fur}>>=
   arr := strings.Fields(r[i].Header())
-  h := fmt.Sprintf("%s_(%d..%d)",
-	  arr[0], iv.s+1, iv.e+1)
+  h := fmt.Sprintf("%s$%d", arr[0], iv.s)
+  if *optU {
+	  h = fmt.Sprintf("%s_(%d..%d)",
+		  arr[0], iv.s+1, iv.e+1) 
+  }
   region := fasta.NewSequence(h, d[iv.s:iv.e+1])
   regions = append(regions, region)
 #+end_src
@@ -585,6 +600,8 @@ We initialize a struct of parameters for \ty{Intersect}:
   \item \ty{Reference}: a slice containing the unique regions we just
     extracted. They serve as the reference, onto which \ty{Intersect}
     piles the remaining target sequences;
+    \item{\ty{ShiftRefRight}: use the \ty{\textbackslash}\ty{x} field
+      in the reference headers to shift the output coordinates;}
     \item \ty{TargetDir}: the \ty{t/} directory of our \ty{fur}
       database;
     \item \ty{Threshold}: sensitivity of intersection, the minimum
@@ -604,12 +621,14 @@ We initialize a struct of parameters for \ty{Intersect}:
       to headers of the output \ty{fasta} sequences;
     \item \ty{PrintOneBased}: use one-based end-inclusive coordinates
       in the output.
+\end{itemize}
 #+end_export
 #+begin_src go <<Set parameters for \ty{Intersect}, Pr. \ref{pr:fur}>>=
   threshold := 0.0
   //<<Interpret the \ty{-f} flag, Pr. \ref{pr:fur}>>
   parameters := chr.Parameters{
 	  Reference:       regions,
+	  ShiftRefRight:   true,
 	  TargetDir:       *optD + "/t",
 	  Threshold:       threshold,
 	  ShustrPval:      0.95,
@@ -671,41 +690,24 @@ We remove regions shorter than the minimum length.
   regions = regions[:i]
 #+end_src
 #+begin_export latex
-We remove the exclamation marks inserted by \ty{Intersect} in the
-sequences' data. They are used as separators between concatenated
-contigs. Sequences that are, in fact, contiguous, could get splitted
-into separate contigs during genome assembly. \ty{Intersect} may
-occasionally find such matches.
-
 The header of the target representative and the interval coordinates
 are joined into one string by an underscore to generate unique headers
 for the subsequent Blast step.
 #+end_export
 #+begin_src go <<Process data and headers, Pr. \ref{pr:fur}>>=
   for _, region := range regions {
-	  //<<Remove exclamation marks, Pr. \ref{pr:fur}>>
 	  //<<Insert underscores into headers, Pr. \ref{pr:fur}>>
   }
 #+end_src
 #+begin_export latex
-We replace exclamation marks by \ty{N}s.
-#+end_export
-#+begin_src go <<Remove exclamation marks, Pr. \ref{pr:fur}>>=
-  for i, c := range region.Data() {
-	  if c == '!' {
-		  region.Data()[i] = 'N'
-	  }
-  }
-#+end_src
-#+begin_export latex
-We insert an underscore instead of a whitespace right after the
-chromosome (or contig) name and before an open parenthesis. We expect
-the parenthesis to occur only once in a header as chromosome names
+We insert an underscore instead of a tab right after the chromosome
+(or contig) name and before an open parenthesis. We expect the
+parenthesis to occur only once in a header as chromosome names
 \textit{usually} do not contain parentheses.
 #+end_export
 #+begin_src go <<Insert underscores into headers, Pr. \ref{pr:fur}>>=
   origHeader := region.Header()
-  newHeader := strings.Replace(origHeader, " (", "_(", 1)
+  newHeader := strings.Replace(origHeader, "\t(", "_(", 1)
   region.SetHeader(newHeader)
 #+end_src
 #+begin_export latex
@@ -1058,7 +1060,7 @@ store them as a slice of integers.
 #+end_export
 #+begin_src go <<Extract mutations, Pr. \ref{pr:fur}>>=
   arr = strings.Split(arr[1], ")")
-  muts := strings.Fields(arr[2])
+  muts := strings.Fields(arr[1])
   mutations := make([]int, 0)
   for _, m := range muts {
 	  i, err := strconv.Atoi(m)
@@ -1109,7 +1111,7 @@ mutations, and the mutation positions.
   h = fmt.Sprintf("%s_(%d..%d) %4d",
 	  prefix, s, e, n)
   for _, m := range nm {
-	  h = fmt.Sprintf("%s  %d", h, m)
+	  h = fmt.Sprintf("%s %d", h, m)
   }
 #+end_src
 #+begin_export latex
